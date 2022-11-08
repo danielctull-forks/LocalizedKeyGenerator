@@ -40,6 +40,32 @@ struct Enum<Content: Text>: Text {
     }
 }
 
+struct ComputedProperty<Content: Text>: Text {
+
+    internal init(
+        access: String,
+        name: String,
+        type: String,
+        @TextBuilder content: () -> Content
+    ) {
+        self.access = access
+        self.name = name
+        self.type = type
+        self.content = content()
+    }
+
+    let access: String
+    let name: String
+    let type: String
+    let content: Content
+
+    var body: some Text {
+        "\(access)var \(name): \(type) {"
+        content.indented()
+        "}"
+    }
+}
+
 public struct LocalizedKeyGenerator {
     public enum Error: Swift.Error, CustomStringConvertible {
         case keyHasSpaces(_ key: String)
@@ -89,35 +115,31 @@ public struct LocalizedKeyGenerator {
 
             Enum(access: accessString, name: enumName, conformances: ["String", "CaseIterable"], cases: alphabetizedKeys) {
 
-                "\(accessString)var localizedValue: String {"
+                ComputedProperty(access: accessString, name: "localizedValue", type: "String") {
 
-                switch self.options.location {
-                case .frameworkBundle:
-                    """
-                    LocalizedString(key: self.rawValue,
-                                    bundle: Bundle(for: ClassForBundleLocation.self),
-                                    comment: "")
-                    """
-                        .indented()
+                    switch self.options.location {
+                    case .frameworkBundle:
+                        """
+                        LocalizedString(key: self.rawValue,
+                                        bundle: Bundle(for: ClassForBundleLocation.self),
+                                        comment: "")
+                        """
 
-                case .mainBundle, .none: // assumes main bundle by default
-                    """
-                    LocalizedString(key: self.rawValue,
-                                    bundle: .main,
-                                    comment: "")
-                    """
-                        .indented()
+                    case .mainBundle, .none: // assumes main bundle by default
+                        """
+                        LocalizedString(key: self.rawValue,
+                                        bundle: .main,
+                                        comment: "")
+                        """
 
-                case .swiftModule:
-                    """
-                    LocalizedString(key: self.rawValue,
-                                    bundle: .module,
-                                    comment: "")
-                    """
-                        .indented()
+                    case .swiftModule:
+                        """
+                        LocalizedString(key: self.rawValue,
+                                        bundle: .module,
+                                        comment: "")
+                        """
+                    }
                 }
-
-                "}"
             }
 
             if self.options.location == .frameworkBundle {
@@ -126,7 +148,9 @@ public struct LocalizedKeyGenerator {
             }
         }
 
-        return text().indentation(.spaces(2)).content
+        return text()
+            .indentation(.spaces(2))
+            .content
     }
     
     private func fileName(from options: LocalizedKeyOptions) -> String {
