@@ -2,6 +2,44 @@
 import FileBuilder
 import Foundation
 
+struct Enum<Content: Text>: Text {
+
+    internal init(
+        access: String,
+        name: String,
+        conformances: [String],
+        cases: [String],
+        @TextBuilder content: () -> Content
+    ) {
+        self.access = access
+        self.name = name
+        self.conformances = conformances
+        self.cases = cases
+        self.content = content()
+    }
+
+    let access: String
+    let name: String
+    let conformances: [String]
+    let cases: [String]
+    let content: Content
+
+    var conformancesString: String {
+        guard !conformances.isEmpty else { return "" }
+        return ": " + conformances.joined(separator: ", ")
+    }
+
+    var body: some Text {
+        "\(access)enum \(name)\(conformancesString) {"
+        for value in cases {
+            "case \(value)".indented()
+        }
+        Line.empty
+        content.indented()
+        "}"
+    }
+}
+
 public struct LocalizedKeyGenerator {
     public enum Error: Swift.Error, CustomStringConvertible {
         case keyHasSpaces(_ key: String)
@@ -38,7 +76,10 @@ public struct LocalizedKeyGenerator {
             throw Error.couldntLoadStringsDict(localizedStringsDictURL)
         }
 
-        let alphabetizedKeys = localizedStringsDict.map { $0.key }.sorted()
+        let alphabetizedKeys = localizedStringsDict
+            .map { $0.key }
+            .filter { !$0.contains(" ") }
+            .sorted()
 
         @TextBuilder func text() -> some Text {
 
@@ -46,54 +87,42 @@ public struct LocalizedKeyGenerator {
 
             Line.empty
 
-            "\(accessString)enum \(enumName): String, CaseIterable {"
+            Enum(access: accessString, name: enumName, conformances: ["String", "CaseIterable"], cases: alphabetizedKeys) {
 
-            for key in alphabetizedKeys where !key.contains(" ") {
-                "case \(key)"
-                    .indented()
+                "\(accessString)var localizedValue: String {"
+
+                switch self.options.location {
+                case .frameworkBundle:
+                    """
+                    LocalizedString(key: self.rawValue,
+                                    bundle: Bundle(for: ClassForBundleLocation.self),
+                                    comment: "")
+                    """
+                        .indented()
+
+                case .mainBundle, .none: // assumes main bundle by default
+                    """
+                    LocalizedString(key: self.rawValue,
+                                    bundle: .main,
+                                    comment: "")
+                    """
+                        .indented()
+
+                case .swiftModule:
+                    """
+                    LocalizedString(key: self.rawValue,
+                                    bundle: .module,
+                                    comment: "")
+                    """
+                        .indented()
+                }
+
+                "}"
             }
 
-            Line.empty
-
-            "\(accessString)var localizedValue: String {"
-                .indented()
-
-            switch self.options.location {
-            case .frameworkBundle:
-                """
-                LocalizedString(key: self.rawValue,
-                                bundle: Bundle(for: ClassForBundleLocation.self),
-                                comment: "")
-                """
-                    .indented()
-                    .indented()
-                "}".indented()
-                "}"
+            if self.options.location == .frameworkBundle {
                 Line.empty
                 "private class ClassForBundleLocation {}"
-
-            case .mainBundle,
-                 .none: // assumes main bundle by default
-                """
-                LocalizedString(key: self.rawValue,
-                                bundle: .main,
-                                comment: "")
-                """
-                    .indented()
-                    .indented()
-                "}".indented()
-                "}"
-
-            case .swiftModule:
-                """
-                LocalizedString(key: self.rawValue,
-                                bundle: .module,
-                                comment: "")
-                """
-                    .indented()
-                    .indented()
-                "}".indented()
-                "}"
             }
         }
 
