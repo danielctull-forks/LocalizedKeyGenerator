@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "filebuilder",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/danielctull-playground/FileBuilder",
+      "state" : {
+        "branch" : "main",
+        "revision" : "362237f212dcf73e808c393400ff2f1317cf0fe5"
+      }
+    }
+  ],
+  "version" : 2
+}
