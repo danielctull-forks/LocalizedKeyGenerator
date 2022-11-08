@@ -66,6 +66,17 @@ struct ComputedProperty<Content: Text>: Text {
     }
 }
 
+struct LocalizedString: Text {
+    let bundle: String
+    var body: some Text {
+        """
+        LocalizedString(key: self.rawValue,
+                        bundle: \(bundle),
+                        comment: "")
+        """
+    }
+}
+
 public struct LocalizedKeyGenerator {
     public enum Error: Swift.Error, CustomStringConvertible {
         case keyHasSpaces(_ key: String)
@@ -119,25 +130,13 @@ public struct LocalizedKeyGenerator {
 
                     switch self.options.location {
                     case .frameworkBundle:
-                        """
-                        LocalizedString(key: self.rawValue,
-                                        bundle: Bundle(for: ClassForBundleLocation.self),
-                                        comment: "")
-                        """
+                        LocalizedString(bundle: "Bundle(for: ClassForBundleLocation.self)")
 
                     case .mainBundle, .none: // assumes main bundle by default
-                        """
-                        LocalizedString(key: self.rawValue,
-                                        bundle: .main,
-                                        comment: "")
-                        """
+                        LocalizedString(bundle: ".main")
 
                     case .swiftModule:
-                        """
-                        LocalizedString(key: self.rawValue,
-                                        bundle: .module,
-                                        comment: "")
-                        """
+                        LocalizedString(bundle: ".module")
                     }
                 }
             }
